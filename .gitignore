@@ -1,3 +1,4 @@
 *.csv
 SH_model/__pycache__
 traning_log*.txt
+runs/

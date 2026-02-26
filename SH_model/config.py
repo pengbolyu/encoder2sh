@@ -9,6 +9,7 @@ hrtf_path = os.path.join(DATA_DIR, "HUTUBS_matrix_measured8o.mat")
 shvec_path = os.path.join(DATA_DIR, "SH_matrix_8o.mat")
 
 log_file = "training_log8o.txt"
+run_dir = os.path.join(BASE_DIR, "runs", "latest")
 
 num_epochs = 1000
 batch_size = 10
