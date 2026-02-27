@@ -9,7 +9,7 @@ from PIL import Image
 import scipy.io as sio
 import gc
 
-from config import BASE_DIR, file_numbers_path, hrtf_path, num_individuals
+from config import BASE_DIR, encode_path, file_numbers_path, hrtf_path, num_individuals
 
 class CustomDataset(Dataset):
     def __init__(self, train_idx, val_idx, test_idx, split="train"):
@@ -19,45 +19,29 @@ class CustomDataset(Dataset):
         self.test_idx = np.array(test_idx, dtype=int)
         self.split = split
         self.left_or_right = 0   # 选择左耳或右耳
-        # 加载人体参数矩阵（SubjectID + 头部与左耳参数）
-        anthropometric_path = os.path.join(BASE_DIR, "Data", "AntrhopometricMeasures.csv")
-        if os.path.exists(anthropometric_path):
-            anthropometric_data = np.genfromtxt(
-                anthropometric_path,
-                delimiter=",",
-                skip_header=1
-            )
+        # 加载耳部图片编码矩阵
+        if os.path.exists(encode_path):
+            img_encode_matrix = torch.load(encode_path, map_location="cpu")
         else:
-            print("anthropometric_data not found")
-            raise FileNotFoundError(f"{anthropometric_path} not found")
+            print("img_encode_matrix not found")
+            raise FileNotFoundError(f"{encode_path} not found")
 
-        if anthropometric_data.ndim == 1:
-            anthropometric_data = anthropometric_data.reshape(1, -1)
+        if isinstance(img_encode_matrix, np.ndarray):
+            img_encode_matrix = torch.from_numpy(img_encode_matrix)
 
-        subject_ids = anthropometric_data[:, 0].astype(int)
-        feature_matrix = anthropometric_data[:, 1:26]
-
-        # 加载具有网格的个体索引，并对人体参数做同样的主体筛选
+        # 加载具有网格的个体索引，并对耳部编码做同样的主体筛选
         fileNumbers = sio.loadmat(file_numbers_path)["fileNumbers"]  # 代表了加载顺序
         fileNumbers = fileNumbers.flatten()
-        fileNumbers = np.sort(fileNumbers) - 1    # 顺序
+        fileNumbers = np.sort(fileNumbers).astype(np.int64) - 1    # 顺序
         if fileNumbers.shape[0] <= 2:
             raise ValueError("Not enough subjects after fileNumbers loading to exclude first and last individuals")
+        img_encode_matrix = img_encode_matrix.float()
         # 去除第一个和最后一个个体（人工头）
         fileNumbers = fileNumbers[1:-1]
-        feature_matrix = feature_matrix[fileNumbers]
-
-        # 基于当前划分的训练主体计算统计量，避免信息泄漏
-        train_features = feature_matrix[self.train_idx]
-
-        mu = np.mean(train_features, axis=0)
-        sigma = np.std(train_features, axis=0)
-        sigma = np.where(sigma < 1e-8, 1.0, sigma)
-
-        # 进行 sigmoid 归一化
-        feature_matrix = 1.0 / (1.0 + np.exp(-((feature_matrix - mu) / sigma)))
-
-        img_encode_matrix = torch.from_numpy(feature_matrix).float()
+        img_encode_matrix = img_encode_matrix[1:-1]
+        assert img_encode_matrix.shape[0] == fileNumbers.shape[0], (
+            f"img_encode_matrix.shape[0]={img_encode_matrix.shape[0]} != fileNumbers.shape[0]={fileNumbers.shape[0]}"
+        )
 
         self.img_encode_matrix_train = img_encode_matrix[self.train_idx]
         self.img_encode_matrix_val = img_encode_matrix[self.val_idx]
