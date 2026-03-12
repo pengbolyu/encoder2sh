@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 import os
 import shutil
@@ -18,10 +19,15 @@ from config import (
     default_seed,
     learning_rate,
     log_file,
+    lr_scheduler_factor,
+    lr_scheduler_patience,
+    lr_warmup_epochs,
+    min_learning_rate,
     num_epochs,
     num_individuals,
     run_dir,
     shvec_path,
+    weight_decay,
 )
 
 from utils import calLSD
@@ -186,7 +192,14 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
 
             model = MyModel(num_freqs=num_freqs, num_sh_coeffs=num_sh_coeffs).to(device)
             criterion = nn.MSELoss()
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+            scheduler = ReduceLROnPlateau(
+                optimizer,
+                mode="min",
+                factor=lr_scheduler_factor,
+                patience=lr_scheduler_patience,
+                min_lr=min_learning_rate,
+            )
 
             final_train_loss = np.nan
             final_val_loss = np.nan
@@ -201,6 +214,11 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             for epoch in range(num_epochs):
                 model.train()
                 running_loss = 0.0
+
+                if lr_warmup_epochs > 0 and epoch < lr_warmup_epochs:
+                    warmup_lr = learning_rate * float(epoch + 1) / float(lr_warmup_epochs)
+                    for param_group in optimizer.param_groups:
+                        param_group["lr"] = warmup_lr
 
                 for z_ear, hrtf_sh, hrtf_amp, subject in train_loader:
                     z_ear = z_ear.float().to(device)
@@ -246,11 +264,18 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                 final_val_lsd_recon_smooth = val_lsd_recon_smooth / len(val_loader)
                 final_val_lsd_recon_raw = val_lsd_recon_raw / len(val_loader)
 
+                # Monitor validation LSD Raw because the final target metric is LSD on test.
+                if lr_warmup_epochs <= 0 or epoch >= lr_warmup_epochs:
+                    scheduler.step(final_val_lsd_recon_raw)
+
+                current_lr = optimizer.param_groups[0]["lr"]
+
                 log_message = (
                     f"Fold {fold_id}, Epoch [{epoch+1}/{num_epochs}], "
                     f"Train Loss: {final_train_loss:.4f}, Val Loss: {final_val_loss:.4f}, "
                     f"Val LSD Recon Smooth: {final_val_lsd_recon_smooth:.4f}, "
-                    f"Val LSD Recon Raw: {final_val_lsd_recon_raw:.4f}"
+                    f"Val LSD Recon Raw: {final_val_lsd_recon_raw:.4f}, "
+                    f"LR: {current_lr:.8f}"
                 )
                 print(log_message)
                 f.write(log_message + "\n")

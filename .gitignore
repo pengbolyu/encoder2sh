@@ -1,7 +1,9 @@
 *.csv
+*.png
 SH_model/__pycache__
 traning_log*.txt
 runs/
 runs_0228
 runs_0312
 runs_0301
+runs_0312_lrsch
