@@ -206,6 +206,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             final_val_lsd_recon_smooth = np.nan
             final_val_lsd_recon_raw = np.nan
             best_val_loss = float("inf")
+            best_val_lsd_raw_metric = float("inf")
             best_epoch = -1
             best_state_dict = None
             best_val_lsd_smooth = None
@@ -280,8 +281,9 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                 print(log_message)
                 f.write(log_message + "\n")
 
-                if final_val_loss < best_val_loss:
+                if final_val_lsd_recon_raw < best_val_lsd_raw_metric:
                     best_val_loss = final_val_loss
+                    best_val_lsd_raw_metric = final_val_lsd_recon_raw
                     best_epoch = epoch + 1
                     best_state_dict = {
                         k: v.detach().cpu().clone() for k, v in model.state_dict().items()
@@ -298,7 +300,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             model.load_state_dict(best_state_dict)
             best_model_message = (
                 f"Fold {fold_id}: using best model from epoch {best_epoch} "
-                f"with Val Loss {best_val_loss:.4f} for testing"
+                f"with Val LSD Raw {best_val_lsd_raw:.4f} for testing"
             )
             print(best_model_message)
             f.write(best_model_message + "\n")
@@ -334,7 +336,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             test_lsd_recon_raw = test_lsd_recon_raw_total / len(test_loader)
 
             fold_train_losses.append(final_train_loss)
-            fold_val_losses.append(final_val_loss)
+            fold_val_losses.append(best_val_loss)
             fold_val_lsd_smooth.append(best_val_lsd_smooth)
             fold_val_lsd_raw.append(best_val_lsd_raw)
             fold_test_losses.append(test_loss)
@@ -343,7 +345,8 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
 
             fold_summary = (
                 f"Fold {fold_id} Summary -> Train Loss: {final_train_loss:.4f}, "
-                f"Val Loss: {final_val_loss:.4f}, Test Loss: {test_loss:.4f}, "
+                f"Val Loss(best): {best_val_loss:.4f}, Val LSD Raw(best): {best_val_lsd_raw:.4f}, "
+                f"Test Loss: {test_loss:.4f}, "
                 f"Test LSD Smooth: {test_lsd_recon_smooth:.4f}, Test LSD Raw: {test_lsd_recon_raw:.4f}"
             )
             print(fold_summary)
