@@ -3,13 +3,13 @@ import os
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DATA_DIR = os.path.join("/home/pengbo.lv/code/img2sh2/eardecoder2sh/data")
 
-encode_path = os.path.join(DATA_DIR, "encode_matrix256_20241214_left_depth_ear.pt")
+encode_path = "/home/pengbo.lv/code/VAE/jaffe_use_inception_rep1_depth_20260312_ear_left_256/img_encoding/encode_matrix256l_20260312_left_img_ear.pt"
 file_numbers_path = os.path.join(DATA_DIR, "fileNumbers.mat")
-hrtf_path = os.path.join(DATA_DIR, "HUTUBS_matrix_measured8o.mat")
-shvec_path = os.path.join(DATA_DIR, "SH_matrix_8o.mat")
+hrtf_path = os.path.join(DATA_DIR, "HUTUBS_matrix_measured9o.mat")
+shvec_path = os.path.join(DATA_DIR, "SH_matrix_9o.mat")
 
-log_file = "training_log8o.txt"
-run_dir = os.path.join(BASE_DIR, "runs", "latest")
+log_file = "training_log9o.txt"
+run_dir = os.path.join(BASE_DIR, "runs_0312", "SH_model_9o")
 
 num_epochs = 1000
 batch_size = 10

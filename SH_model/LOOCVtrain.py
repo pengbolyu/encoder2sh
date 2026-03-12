@@ -373,3 +373,7 @@ if __name__ == "__main__":
     # # 保存为 .mat 文件
     # sio.savemat('tet.mat', {'all_lsd_recon_raw_f_tensor_8order': all_lsd_recon_raw_f_tensor.cpu().numpy()})
     # print("All LSD Recon Raw F Tensor Shape:", all_lsd_recon_raw_f_tensor.shape)
+    lsd_out_path = os.path.join(run_dir, "all_lsd_recon_raw_f_tensor.mat")
+    sio.savemat(lsd_out_path, {
+        "all_lsd_recon_raw_f_tensor": all_lsd_recon_raw_f_tensor.cpu().numpy()
+    })
