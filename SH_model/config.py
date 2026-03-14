@@ -5,13 +5,13 @@ DATA_DIR = os.path.join("/home/pengbo.lv/code/img2sh2/eardecoder2sh/data")
 
 encode_path = "/home/pengbo.lv/code/VAE/jaffe_use_inception_rep1_depth_20260312_ear_left_256/img_encoding/encode_matrix256l_20260312_left_img_ear.pt"
 file_numbers_path = os.path.join(DATA_DIR, "fileNumbers.mat")
-hrtf_path = os.path.join(DATA_DIR, "HUTUBS_matrix_measured7o.mat")
-shvec_path = os.path.join(DATA_DIR, "SH_matrix_7o.mat")
+hrtf_path = os.path.join(DATA_DIR, "HUTUBS_matrix_measured8o.mat")
+shvec_path = os.path.join(DATA_DIR, "SH_matrix_8o.mat")
 
-log_file = "training_log7o.txt"
-run_dir = os.path.join(BASE_DIR, "runs_0312_lrsch_best_val_lsd", "SH_model_7o_val_10_remove_33_48_64_86_test")
+log_file = "training_log8o.txt"
+run_dir = os.path.join(BASE_DIR, "runs_0314_lrsch_best_val_lsd", "SH_model_8o_5f_2v_remove_33_48_test")
 
-num_epochs = 400
+num_epochs = 800
 batch_size = 10
 learning_rate = 0.001
 min_learning_rate = 1e-6
@@ -19,6 +19,11 @@ lr_scheduler_factor = 0.5
 lr_scheduler_patience = 20
 lr_warmup_epochs = 10
 weight_decay = 1e-4
+
+# Model architecture
+model_stem_channels = 64
+model_stage_channels = (128, 256, 512)
+model_stage_blocks = (2, 2, 2)
 
 default_seed = 123456
 num_individuals = 58

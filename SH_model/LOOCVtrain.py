@@ -20,6 +20,9 @@ from config import (
     default_seed,
     learning_rate,
     log_file,
+    model_stage_blocks,
+    model_stage_channels,
+    model_stem_channels,
     lr_scheduler_factor,
     lr_scheduler_patience,
     lr_warmup_epochs,
@@ -141,9 +144,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
     set_seed()
 
     # Exclude first/last artificial-head subjects and subject 33 from fileNumbers.
-    effective_num_individuals = num_individuals - 6
-    if effective_num_individuals <= 2:
-        raise ValueError("Not enough subjects after exclusions")
+    effective_num_individuals = num_individuals - 4  # Exclude 2 for first/last, and 2 for subject 33 and 48
 
     fold_splits = build_kfold_splits(
         effective_num_individuals,
@@ -193,7 +194,13 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             num_freqs = sample_hrtf_sh.shape[0]
             num_sh_coeffs = sample_hrtf_sh.shape[1]
 
-            model = MyModel(num_freqs=num_freqs, num_sh_coeffs=num_sh_coeffs).to(device)
+            model = MyModel(
+                num_freqs=num_freqs,
+                num_sh_coeffs=num_sh_coeffs,
+                stem_channels=model_stem_channels,
+                stage_channels=model_stage_channels,
+                stage_blocks=model_stage_blocks,
+            ).to(device)
             criterion = nn.MSELoss()
             optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
             scheduler = ReduceLROnPlateau(
@@ -423,8 +430,8 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
 if __name__ == "__main__":
     cv_train_loss, cv_val_loss, cv_test_loss, cv_test_lsd_recon_smooth, cv_test_lsd_recon_raw, all_lsd_recon_raw_f_tensor = cross_validate_train(
         num_individuals,
-        n_splits=10,
-        val_ratio=0.1,
+        n_splits=5,
+        val_ratio=0.2,
     )
     # # 保存为 .mat 文件
     # sio.savemat('tet.mat', {'all_lsd_recon_raw_f_tensor_8order': all_lsd_recon_raw_f_tensor.cpu().numpy()})

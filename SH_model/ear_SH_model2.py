@@ -43,43 +43,59 @@ class ResidualBlock(nn.Module):
 class MyModel(nn.Module):
     """基于残差网络的模型，从耳朵编码直接预测频率数 * 球谐系数的矩阵"""
 
-    def __init__(self, num_freqs, num_sh_coeffs):
+    def __init__(
+        self,
+        num_freqs,
+        num_sh_coeffs,
+        stem_channels=64,
+        stage_channels=(128, 256, 512),
+        stage_blocks=(2, 2, 2),
+    ):
         super(MyModel, self).__init__()
 
         self.num_freqs = num_freqs
         self.num_sh_coeffs = num_sh_coeffs
 
+        if len(stage_channels) != 3:
+            raise ValueError(f"stage_channels must have length 3, got {stage_channels}")
+        if len(stage_blocks) != 3:
+            raise ValueError(f"stage_blocks must have length 3, got {stage_blocks}")
+
+        c1 = int(stem_channels)
+        c2, c3, c4 = [int(c) for c in stage_channels]
+        b1, b2, b3 = [int(b) for b in stage_blocks]
+
         # 初始卷积层，调整通道数
         self.conv1 = nn.Conv1d(
             in_channels=1,
-            out_channels=64,
+            out_channels=c1,
             kernel_size=7,
             stride=2,
             padding=3
         )
-        self.bn1 = nn.BatchNorm1d(64)
+        self.bn1 = nn.BatchNorm1d(c1)
         self.relu = nn.ReLU(inplace=True)
 
         # 构建残差层
         self.layer1 = self._make_layer(
             block=ResidualBlock,
-            in_channels=64,
-            out_channels=128,
-            blocks=2,
+            in_channels=c1,
+            out_channels=c2,
+            blocks=b1,
             stride=2
         )
         self.layer2 = self._make_layer(
             block=ResidualBlock,
-            in_channels=128,
-            out_channels=256,
-            blocks=2,
+            in_channels=c2,
+            out_channels=c3,
+            blocks=b2,
             stride=2
         )
         self.layer3 = self._make_layer(
             block=ResidualBlock,
-            in_channels=256,
-            out_channels=512,
-            blocks=2,
+            in_channels=c3,
+            out_channels=c4,
+            blocks=b3,
             stride=2
         )
 
@@ -87,7 +103,7 @@ class MyModel(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool1d(1)
 
         # 全连接层，输出预测结果
-        self.fc = nn.Linear(512, num_freqs * num_sh_coeffs)
+        self.fc = nn.Linear(c4, num_freqs * num_sh_coeffs)
 
     def _make_layer(self, block, in_channels, out_channels, blocks, stride=1):
         """构建残差层"""
