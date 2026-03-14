@@ -430,8 +430,8 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
 if __name__ == "__main__":
     cv_train_loss, cv_val_loss, cv_test_loss, cv_test_lsd_recon_smooth, cv_test_lsd_recon_raw, all_lsd_recon_raw_f_tensor = cross_validate_train(
         num_individuals,
-        n_splits=5,
-        val_ratio=0.2,
+        n_splits=10,
+        val_ratio=0.1,
     )
     # # 保存为 .mat 文件
     # sio.savemat('tet.mat', {'all_lsd_recon_raw_f_tensor_8order': all_lsd_recon_raw_f_tensor.cpu().numpy()})
