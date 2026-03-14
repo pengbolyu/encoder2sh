@@ -33,12 +33,26 @@ class CustomDataset(Dataset):
         fileNumbers = sio.loadmat(file_numbers_path)["fileNumbers"]  # 代表了加载顺序
         fileNumbers = fileNumbers.flatten()
         fileNumbers = np.sort(fileNumbers).astype(np.int64) - 1    # 顺序
-        if fileNumbers.shape[0] <= 2:
-            raise ValueError("Not enough subjects after fileNumbers loading to exclude first and last individuals")
         img_encode_matrix = img_encode_matrix.float()
-        # 去除第一个和最后一个个体（人工头）
-        fileNumbers = fileNumbers[1:-1]
-        img_encode_matrix = img_encode_matrix[1:-1]
+        if img_encode_matrix.shape[0] != fileNumbers.shape[0]:
+            raise ValueError(
+                f"Before filtering: img_encode_matrix.shape[0]={img_encode_matrix.shape[0]} "
+                f"!= fileNumbers.shape[0]={fileNumbers.shape[0]}"
+            )
+
+        # 去除第一个和最后一个个体（人工头）以及 fileNumbers 中编号 33 的个体
+        # 注意：fileNumbers 已执行 -1，因此编号 33 对应值为 32。
+        # 既支持单个 int，也支持列表/元组
+        remove_subject_ids = [33]   # 或者 remove_subject_ids = 33
+        remove_subject_idxs = np.atleast_1d(remove_subject_ids).astype(np.int64) - 1
+
+        keep_mask = np.ones(fileNumbers.shape[0], dtype=np.bool_)
+        keep_mask[0] = False
+        keep_mask[-1] = False
+        keep_mask[np.isin(fileNumbers, remove_subject_idxs)] = False
+
+        fileNumbers = fileNumbers[keep_mask]
+        img_encode_matrix = img_encode_matrix[keep_mask]
         assert img_encode_matrix.shape[0] == fileNumbers.shape[0], (
             f"img_encode_matrix.shape[0]={img_encode_matrix.shape[0]} != fileNumbers.shape[0]={fileNumbers.shape[0]}"
         )
@@ -50,6 +64,7 @@ class CustomDataset(Dataset):
         # 频率索引
         # freq_logind = np.arange(17, 17+2*38, 2)
         freq_logind = np.arange(1, 1+43*2, 2)
+        self.fileNumbers_filter = fileNumbers
 
         # 加载sh系数
         sh_mat = sio.loadmat(hrtf_path)["hrtf_SHT_dBmat"]  # 96 128 25 2
@@ -86,19 +101,19 @@ class CustomDataset(Dataset):
             z_ear = self.img_encode_matrix_train[subject, :]
             hrtf_sh = self.sht_mat_train[subject, :, :, self.left_or_right]
             hrtf_amp = self.measured_hrtf_train[subject, :, :, self.left_or_right]
-            subject_id = int(self.train_idx[subject])
+            subject_id = int(self.fileNumbers_filter[self.train_idx[subject]] + 1)  # +1 返回实际ID
         elif self.split == "val":
             subject = idx % self.sht_mat_val.shape[0]
             z_ear = self.img_encode_matrix_val[subject, :]
             hrtf_sh = self.sht_mat_val[subject, :, :, self.left_or_right]
             hrtf_amp = self.measured_hrtf_val[subject, :, :, self.left_or_right]
-            subject_id = int(self.val_idx[subject])
+            subject_id = int(self.fileNumbers_filter[self.val_idx[subject]] + 1)
         elif self.split == "test":
             subject = idx % self.sht_mat_test.shape[0]
             z_ear = self.img_encode_matrix_test[subject, :]
             hrtf_sh = self.sht_mat_test[subject, :, :, self.left_or_right]
             hrtf_amp = self.measured_hrtf_test[subject, :, :, self.left_or_right]
-            subject_id = int(self.test_idx[subject])
+            subject_id = int(self.fileNumbers_filter[self.test_idx[subject]] + 1)
         else:
             raise ValueError(f"Unsupported split: {self.split}")
 
