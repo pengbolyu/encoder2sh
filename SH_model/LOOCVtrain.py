@@ -55,6 +55,14 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Using device: {device}")
 
 
+def build_sh_mean_baseline(train_dataset, device):
+    """Build SH mean baseline from train split only for residual learning."""
+    ear_idx = int(train_dataset.left_or_right)
+    train_sh = train_dataset.sht_mat_train[:, :, :, ear_idx]  # [N, F, C]
+    sh_mean_np = train_sh.mean(axis=0, keepdims=True).astype(np.float32)  # [1, F, C]
+    return torch.from_numpy(sh_mean_np).to(device)
+
+
 def prepare_run_artifacts(log_file_name):
     code_dir = os.path.join(run_dir, "code")
     os.makedirs(code_dir, exist_ok=True)
@@ -193,6 +201,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
             sample_z_ear, sample_hrtf_sh, _, _ = train_dataset[0]
             num_freqs = sample_hrtf_sh.shape[0]
             num_sh_coeffs = sample_hrtf_sh.shape[1]
+            sh_mean_baseline = build_sh_mean_baseline(train_dataset, device=device)
 
             model = MyModel(
                 num_freqs=num_freqs,
@@ -234,9 +243,10 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                 for z_ear, hrtf_sh, hrtf_amp, subject in train_loader:
                     z_ear = z_ear.float().to(device)
                     hrtf_sh = hrtf_sh.float().to(device)
+                    hrtf_sh_residual = hrtf_sh - sh_mean_baseline
 
-                    hrtf_sh_pred = model(z_ear)
-                    loss = criterion(hrtf_sh_pred, hrtf_sh)
+                    hrtf_sh_pred_residual = model(z_ear)
+                    loss = criterion(hrtf_sh_pred_residual, hrtf_sh_residual)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -255,10 +265,12 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                     for z_ear, hrtf_sh, hrtf_amp, subject in val_loader:
                         z_ear = z_ear.float().to(device)
                         hrtf_sh = hrtf_sh.float().to(device)
+                        hrtf_sh_residual = hrtf_sh - sh_mean_baseline
                         hrtf_amp = hrtf_amp.float().to(device)
 
-                        hrtf_sh_pred = model(z_ear)
-                        loss = criterion(hrtf_sh_pred, hrtf_sh)
+                        hrtf_sh_pred_residual = model(z_ear)
+                        loss = criterion(hrtf_sh_pred_residual, hrtf_sh_residual)
+                        hrtf_sh_pred = hrtf_sh_pred_residual + sh_mean_baseline
 
                         lsd_smooth, lsd_raw, _ = calLSD(
                             hrtf_sh_pred,
@@ -324,10 +336,12 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                 for z_ear, hrtf_sh, hrtf_amp, subject in test_loader:
                     z_ear = z_ear.float().to(device)
                     hrtf_sh = hrtf_sh.float().to(device)
+                    hrtf_sh_residual = hrtf_sh - sh_mean_baseline
                     hrtf_amp = hrtf_amp.float().to(device)
 
-                    hrtf_sh_pred = model(z_ear)
-                    loss = criterion(hrtf_sh_pred, hrtf_sh)
+                    hrtf_sh_pred_residual = model(z_ear)
+                    loss = criterion(hrtf_sh_pred_residual, hrtf_sh_residual)
+                    hrtf_sh_pred = hrtf_sh_pred_residual + sh_mean_baseline
 
                     lsd_smooth, lsd_raw, lsd_recon_raw_f_single = calLSD(
                         hrtf_sh_pred,
