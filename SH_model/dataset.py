@@ -43,7 +43,7 @@ class CustomDataset(Dataset):
         # 去除第一个和最后一个个体（人工头）以及 fileNumbers 中编号 33 的个体
         # 注意：fileNumbers 已执行 -1，因此编号 33 对应值为 32。
         # 既支持单个 int，也支持列表/元组
-        remove_subject_ids = [33]   # 或者 remove_subject_ids = 33
+        remove_subject_ids = [33, 48, 64, 86]   # 或者 remove_subject_ids = 33
         remove_subject_idxs = np.atleast_1d(remove_subject_ids).astype(np.int64) - 1
 
         keep_mask = np.ones(fileNumbers.shape[0], dtype=np.bool_)

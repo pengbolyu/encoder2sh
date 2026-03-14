@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
+import csv
 import os
 import shutil
 
@@ -139,9 +140,10 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
     """
     set_seed()
 
-    effective_num_individuals = num_individuals - 2
+    # Exclude first/last artificial-head subjects and subject 33 from fileNumbers.
+    effective_num_individuals = num_individuals - 6
     if effective_num_individuals <= 2:
-        raise ValueError("Not enough subjects after excluding first and last individuals")
+        raise ValueError("Not enough subjects after exclusions")
 
     fold_splits = build_kfold_splits(
         effective_num_individuals,
@@ -165,6 +167,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
     fold_test_lsd_raw = []
     fold_val_lsd_smooth = []
     fold_val_lsd_raw = []
+    per_subject_test_rows = []
 
     with open(log_path, "w") as f:
         f.write(cv_message + "\n")
@@ -331,6 +334,19 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                     test_lsd_recon_raw_total += lsd_raw.mean().item()
                     all_lsd_recon_raw_f.append(lsd_recon_raw_f_single)
 
+                    subject_ids = subject.detach().cpu().numpy().tolist()
+                    lsd_raw_values = lsd_raw.detach().cpu().numpy().tolist()
+                    lsd_smooth_values = lsd_smooth.detach().cpu().numpy().tolist()
+                    for sid, raw_v, smooth_v in zip(subject_ids, lsd_raw_values, lsd_smooth_values):
+                        per_subject_test_rows.append(
+                            {
+                                "fold": fold_id,
+                                "subject_id": int(sid),
+                                "lsd_raw": float(raw_v),
+                                "lsd_smooth": float(smooth_v),
+                            }
+                        )
+
             test_loss = test_loss_total / len(test_loader)
             test_lsd_recon_smooth = test_lsd_recon_smooth_total / len(test_loader)
             test_lsd_recon_raw = test_lsd_recon_raw_total / len(test_loader)
@@ -382,6 +398,18 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
         )
         print(final_log_message)
         f.write(final_log_message + "\n")
+
+        per_subject_csv_path = os.path.join(run_dir, "per_subject_test_lsd_raw.csv")
+        with open(per_subject_csv_path, "w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.DictWriter(
+                csv_file,
+                fieldnames=["fold", "subject_id", "lsd_raw", "lsd_smooth"],
+            )
+            writer.writeheader()
+            writer.writerows(per_subject_test_rows)
+        csv_log_message = f"Saved per-subject test LSD to: {per_subject_csv_path}"
+        print(csv_log_message)
+        f.write(csv_log_message + "\n")
 
     return (
         cv_train_loss_mean,
