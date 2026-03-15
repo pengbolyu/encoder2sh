@@ -34,7 +34,7 @@ from config import (
     weight_decay,
 )
 
-from utils import calLSD
+from utils import calLSD, restore_hrtf
 
 # ------------------------------
 # 设置随机种子以确保可重复性
@@ -168,6 +168,8 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
     print(cv_message)
 
     run_dir, log_path = prepare_run_artifacts(log_file)
+    per_subject_hrtf_dir = os.path.join(run_dir, "per_subject_predicted_hrtf")
+    os.makedirs(per_subject_hrtf_dir, exist_ok=True)
     all_lsd_recon_raw_f = []
     fold_train_losses = []
     fold_val_losses = []
@@ -342,6 +344,7 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                     hrtf_sh_pred_residual = model(z_ear)
                     loss = criterion(hrtf_sh_pred_residual, hrtf_sh_residual)
                     hrtf_sh_pred = hrtf_sh_pred_residual + sh_mean_baseline
+                    predicted_hrtf = restore_hrtf(hrtf_sh_pred, shvec_path=shvec_path)
 
                     lsd_smooth, lsd_raw, lsd_recon_raw_f_single = calLSD(
                         hrtf_sh_pred,
@@ -358,6 +361,9 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                     subject_ids = subject.detach().cpu().numpy().tolist()
                     lsd_raw_values = lsd_raw.detach().cpu().numpy().tolist()
                     lsd_smooth_values = lsd_smooth.detach().cpu().numpy().tolist()
+                    predicted_hrtf_np = predicted_hrtf.detach().cpu().numpy()
+                    predicted_sh_np = hrtf_sh_pred.detach().cpu().numpy()
+                    measured_hrtf_np = hrtf_amp.permute(0, 2, 1).detach().cpu().numpy()
                     for sid, raw_v, smooth_v in zip(subject_ids, lsd_raw_values, lsd_smooth_values):
                         per_subject_test_rows.append(
                             {
@@ -366,6 +372,23 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
                                 "lsd_raw": float(raw_v),
                                 "lsd_smooth": float(smooth_v),
                             }
+                        )
+
+                    for i, sid in enumerate(subject_ids):
+                        sid_int = int(sid)
+                        per_subject_path = os.path.join(
+                            per_subject_hrtf_dir,
+                            f"predicted_subject_{sid_int:02d}.mat",
+                        )
+                        sio.savemat(
+                            per_subject_path,
+                            {
+                                "subject_id": np.array([sid_int], dtype=np.int32),
+                                "fold": np.array([fold_id], dtype=np.int32),
+                                "predicted_hrtf_db": predicted_hrtf_np[i],
+                                "predicted_sh_db": predicted_sh_np[i],
+                                "measured_hrtf_db": measured_hrtf_np[i],
+                            },
                         )
 
             test_loss = test_loss_total / len(test_loader)
@@ -431,6 +454,10 @@ def cross_validate_train(num_individuals, log_file=log_file, n_splits=10, val_ra
         csv_log_message = f"Saved per-subject test LSD to: {per_subject_csv_path}"
         print(csv_log_message)
         f.write(csv_log_message + "\n")
+
+        hrtf_save_message = f"Saved per-subject predicted HRTF to: {per_subject_hrtf_dir}"
+        print(hrtf_save_message)
+        f.write(hrtf_save_message + "\n")
 
     return (
         cv_train_loss_mean,
