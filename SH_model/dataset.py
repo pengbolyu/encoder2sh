@@ -9,7 +9,7 @@ from PIL import Image
 import scipy.io as sio
 import gc
 
-from config import BASE_DIR, encode_path, file_numbers_path, hrtf_path, num_individuals
+from config import BASE_DIR, encode_path, file_numbers_path, hrtf_path, left_or_right, num_individuals
 
 class CustomDataset(Dataset):
     def __init__(self, train_idx, val_idx, test_idx, split="train"):
@@ -18,7 +18,9 @@ class CustomDataset(Dataset):
         self.val_idx = np.array(val_idx, dtype=int)
         self.test_idx = np.array(test_idx, dtype=int)
         self.split = split
-        self.left_or_right = 0   # 选择左耳或右耳
+        self.left_or_right = int(left_or_right)   # 选择左耳或右耳
+        if self.left_or_right not in (0, 1):
+            raise ValueError(f"left_or_right must be 0 (left) or 1 (right), got {self.left_or_right}")
         # 加载耳部图片编码矩阵
         if os.path.exists(encode_path):
             img_encode_matrix = torch.load(encode_path, map_location="cpu")

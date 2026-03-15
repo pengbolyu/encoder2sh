@@ -25,5 +25,8 @@ model_stem_channels = 64
 model_stage_channels = (128, 256, 512)
 model_stage_blocks = (2, 2, 2)
 
+# Ear side selection: 0 for left ear, 1 for right ear
+left_or_right = 0
+
 default_seed = 123456
 num_individuals = 58
