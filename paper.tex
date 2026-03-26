@@ -1,0 +1,412 @@
+%% 
+%% Copyright 2019-2024 Elsevier Ltd
+%% 
+%% Version 2.4
+%% 
+%% This file is part of the 'CAS Bundle'.
+%% --------------------------------------
+%% 
+%% It may be distributed under the conditions of the LaTeX Project Public
+%% License, either version 1.2 of this license or (at your option) any
+%% later version.  The latest version of this license is in
+%%    http://www.latex-project.org/lppl.txt
+%% and version 1.2 or later is part of all distributions of LaTeX
+%% version 1999/12/01 or later.
+%% 
+%% The list of all files belonging to the 'CAS Bundle' is
+%% given in the file `manifest.txt'.
+%% 
+%% Template article for cas-dc documentclass for 
+%% double column output.
+
+%\documentclass[a4paper,fleqn,longmktitle]{cas-dc}
+\documentclass[a4paper,fleqn]{cas-dc}
+
+%\usepackage[authoryear,longnamesfirst]{natbib}
+%\usepackage[authoryear]{natbib}
+\usepackage[numbers]{natbib}
+\usepackage{subcaption}
+% \usepackage[numbers,sort&compress]{natbib} 
+\usepackage[section]{placeins}
+%%%Author definitions
+\def\tsc#1{\csdef{#1}{\textsc{\lowercase{#1}}\xspace}}
+\tsc{WGM}
+\tsc{QE}
+\tsc{EP}
+\tsc{PMS}
+\tsc{BEC}
+\tsc{DE}
+%%%
+
+\begin{document}
+\let\WriteBookmarks\relax
+\def\floatpagepagefraction{1}
+\def\textpagefraction{.001}
+\shorttitle{Personalized HRTF Modeling with VAE and Spherical Harmonics}
+\shortauthors{Pengbo Lyu et~al.}
+
+\title [mode = title]{A Deep Learning Framework for Personalized HRTF Modeling Using Variational Autoencoders and Spherical Harmonics}                      
+\tnotemark[1]
+
+\tnotetext[1]{This work has been funded in part by National Natural Science Foundation of China Grant No.12274221.}
+
+
+% ---------------- Authors ----------------
+
+% author1
+\author[1]{Pengbo Lyu}[type=editor,
+                        auid=000,bioid=1,
+                        role=Student,
+                        orcid=0000-0001-0000-0000]
+
+\fnmark[1]    % First author footnote
+
+% \ead[url]{www.jkkrishnan.in}
+\credit{Conceptualization of this study, Methodology, Software}
+% author1
+\author[1]{Jiawei Liu}[type=author,
+                        role=Student,
+                        orcid=0000-0002-0000-0000]
+\credit{Methodology – Review \& Editing}
+
+% author1
+\author[1]{Zhibin Lin}[type=author,
+                        role=Professor,
+                        orcid=0000-0003-0000-0000]
+\credit{Supervision, Funding acquisition – Review \& Editing}
+\cormark[1]     % Corresponding author
+\ead{zblin@nju.edu.cn}
+% ---------------- Affiliation ----------------
+%\address[1]{, Street 129, 1043 NX Amsterdam, The Netherlands}
+\affiliation[1]{organization={Key Laboratory of Modern Acoustics and Institute of Acoustics, Nanjing University},
+                addressline={Nanjing 210093}, 
+                city={Nanjing},
+                state={Jiangsu},
+                country={China}}
+
+% ---------------- Corresponding author text ----------------
+\cortext[cor1]{Corresponding author}
+
+\fntext[fn1]{This is the first author footnote, but is common to third
+  author as well.}
+
+
+\begin{abstract}
+Personalization of head-related transfer functions (HRTFs) is crucial for immersive augmented and virtual reality audio. To address the high measurement cost and limited scalability of conventional acquisition pipelines, we propose a lightweight ear-image-driven framework that combines variational autoencoder (VAE) representations with structured spherical harmonic (SH) outputs for personalized HRTF modeling. Specifically, ear images are encoded into compact latent features, and a residual regression network predicts SH coefficient matrices that preserve the spatial-frequency structure of HRTFs. In addition, to evaluate representation effectiveness in a controlled setting, we systematically compare three input modalities, namely anthropometric parameters, ResNet-based image features, and VAE-based image features, under a unified SH regression framework. Comprehensive objective evaluations on public datasets demonstrate that the proposed method achieves performance comparable to existing state-of-the-art approaches in terms of log-spectral distortion (LSD), validating its effectiveness.
+\end{abstract}
+
+\begin{graphicalabstract}
+\includegraphics{figs/文章结构20260315.pdf}
+\end{graphicalabstract}
+
+\begin{highlights}
+\item Research highlights item 1
+\item Research highlights item 2
+\item Research highlights item 3
+\end{highlights}
+
+\begin{keywords}
+Head-Related Transfer Function \sep Personalized HRTF \sep Variational Autoencoder \sep Spatial Audio \sep Spherical Harmonics
+\end{keywords}
+
+
+\maketitle
+
+\section{Introduction}
+
+The rapid proliferation of virtual reality (VR) \cite{schissler2016efficient}, augmented reality (AR) \cite{ranjan2015natural} devices, three-dimensional video games, auditory displays, and hearing assistive devices \cite{vickers_involving_2021} has greatly intensified the demand for highly realistic spatial audio rendering. This is because more advanced audio rendering technologies not only enhance perceptual immersion but also enrich the interactive experience in virtual environments \cite{xie2022spatial}.
+
+To address this growing demand, binaural technology has emerged as a pivotal solution due to its ability to accurately simulate how sound interacts with the human auditory system. By leveraging the human binaural auditory system, binaural technology replicates the way sound waves are captured by the ears. This enables listeners to precisely perceive the direction and distance of the sound. 
+
+The Head-Related Transfer Function (HRTF), a critical component of binaural technology, plays a crucial role in precise spatial audio rendering \cite{xie2013head}. It describes the process by which sound waves travel from the source to the human ear, interacting with physiological structures such as the head, pinna, and torso \cite{blauert1997spatial}. 
+
+Currently, most spatial audio systems rely on generic HRTFs rather than truly individualized ones. Such generic HRTFs are typically selected from public HRTF databases or measured using artificial dummy heads. However, because HRTFs are strongly influenced by individual anatomical features such as the head, pinna \cite{kahana_numerical_2006}, and torso, a mismatch between the listener’s anthropometric characteristics and the adopted generic HRTF often leads to reduced sound localization accuracy \cite{wenzel_localization_1993} and degraded spatial perception \cite{simon_perceptual_2016}. Consequently, personalized modeling has attracted increasing attention in recent years as a potential solution for achieving more accurate sound localization and improved auditory immersion. Nevertheless, the direct measurement of HRTFs requires an acoustic laboratory and specialized equipment \cite{engel_sonicom_2023-1,li_measurement_2020-1}, posing a significant barrier to its widespread adoption. To reduce the reliance on full HRTF measurements, a variety of alternative personalization approaches have been proposed. One class of methods relies on numerical simulation based on geometric representations of the human head and pinna. Boundary element methods (BEM) \cite{brinkmann_recent_2023-1} and finite-difference time-domain (FDTD) methods \cite{takemoto_mechanism_2012} can accurately simulate individualized HRTFs, but they require high-resolution geometric models of the subject’s head and pinna, which are typically obtained using specialized 3D scanning or imaging equipment. 
+
+%Figure
+\begin{figure*}
+\centering
+\includegraphics[width=0.75\textwidth]{figs/文章结构20260315.pdf}
+\caption{The framework of the proposed model for individual HRTF prediction.}
+\label{fig:framework}
+\end{figure*}
+
+% 可以再增加一些与深度学习无关的方法
+With the advancement of deep learning, its application in HRTF personalization has become increasingly prevalent. Deep learning techniques can capture the complex relationships between physiological features, HRTF data, and spatial direction \cite{fantini2025survey}. For instance, in \cite{arbel_hrtf_2024-1}, the authors propose a neural network model that predicts the first HRTF notch frequency based on pinna anthropometry, achieving better prediction accuracy compared to previous methods. Another approach adopts a Parameter-Transfer Learning (PTL) framework 
+\cite{qi_parameter-transfer_2019-1} for individualized HRTF generation, where a deep neural network is first trained on a large HRTF database and subsequently adapted to a target individual using a limited set of subject-specific HRTF measurements. SPCA-DNN \cite{zhang_modeling_2020-1} is an HRTF modeling method that combines deep neural networks (DNNs) with spatial principal component analysis (SPCA). It predicts HRTFs in any directions using a small number of spatial principal components and anthropometric data. Experimental results demonstrate that SPCA-DNN outperforms a generic method that uses the HRTFs measured on the CIPIC KEMAR dummy head\cite{algazi2001cipic} and achieves performance comparable to the traditional PCA-based HRTF modeling method, which applies PCA to the HRTF data of all subjects. PRTFNet \cite{ko_prtfnet_2023} is a convolutional neural network (CNN) model designed to personalize HRTF by reconstructing spectral cues associated with the pinna. The input data for PRTFNet consists of ear images, which are used to extract geometric cues related to the pinna. Additionally, the research incorporates a phase personalization technique that adjusts the phase spectra based on head width.
+% 这里可能需要参考文献说明HRTF的空间连续性
+HRTFs are inherently correlated across both spatial positions and frequency points. To leverage the global dependencies, a recent study proposes a multi-stage framework \cite{qiu_individual_2023}. In that study, a Transformer encoder is employed to capture global correlations among frequency points, and experimental results demonstrate that the Transformer encoder leads to a significant performance improvement.
+
+In addition, generative models have attracted increasing attention in HRTF personalization. Variational Autoencoders (VAEs) \cite{kingma_auto-encoding_2022}, as one of the earliest deep generative frameworks, have been applied to personalized HRTF modeling \cite{miccini_hybrid_2021}. VAEs combine probabilistic inference with neural networks to learn compact latent distributions of ear features and HRTFs. More recently, diffusion probabilistic models have emerged as a state-of-the-art approach in generative modeling\cite{yang2023diffusion}. While they are frequently applied to audio generation, recent studies also explore their potential for HRTF personalization. When conditioned on anthropometric data, diffusion-based models can generate HRIRs that closely match ground-truth measurements \cite{10887566}.
+
+% 需要添加参考文献
+Current HRTF personalization methods relying on anthropometric parameters, such as ear shape and head width, face challenges due to the complexity of the measurement process and the inevitability of errors. Additionally, some methods do not perform well, owing to the high-dimensional nature of HRTF data, which involves both spatial and frequency-related features.
+
+In ear-image-driven personalized HRTF modeling, this study proposes a lightweight framework that combines variational autoencoder (VAE) representations with structured spherical harmonic (SH) outputs. In addition, under a unified SH regression framework, we systematically compare three input modalities, namely anthropometric parameters, ResNet-based image features, and VAE-based image features.
+
+The remainder of this paper is structured as follows. Section 1 introduces the proposed personalized HRTF prediction framework, including the variational autoencoder module, the spherical harmonic decomposition, and the residual network mapping strategy. Section 2 describes the dataset and preprocessing procedures. Section 3 outlines the model training setup. Section 4 presents the evaluation results and comparisons with existing approaches. Finally, Section 5 concludes the paper and highlights potential directions for future research.
+
+\section{Method}
+
+We propose a personalized HRTF prediction framework that integrates variational autoencoders and spherical harmonic decomposition. The framework consists of three key components: a variational autoencoder module, a spherical harmonic decomposition module, and an HRTF prediction module. The overall architecture is shown in Fig.~\ref{fig:framework}.
+
+As illustrated in Fig.~\ref{fig:framework}, the pipeline contains two coupled stages. In the first stage, an encoder maps ear images to a latent representation, and the decoder regularizes this representation during VAE training. In the second stage, the learned latent feature is fed into a residual regression network to predict frequency-wise SH coefficients of individualized HRTFs. Ground-truth HRTFs are decomposed into SH coefficients to provide supervised targets, and the prediction error is minimized in the SH domain. Finally, the predicted SH coefficients are transformed back to the HRTF domain for reconstruction and evaluation.
+
+HRTFs are typically approximated as minimum-phase systems, whose transfer functions can be expressed as a cascade of a minimum-phase component and a linear time delay [20]. The phase of the minimum-phase component can be uniquely determined from the logarithmic HRTF magnitude through the Hilbert transform. Consequently, a HRTF can, in principle, be reconstructed from its magnitude and the interaural time difference (ITD). So the present study focuses solely on the personalization of HRTF magnitude. 
+
+
+\subsection{Feature extraction based on VAE}
+Many studies have attempted to personalize HRTFs using anthropometric measurements. However, the results often fail to meet expectations because anthropometric parameters typically cannot represent the complex features of the pinna, and measurement errors are inevitable. Previous research \cite{zeng_hybrid_2010} has shown that anthropometric measurements result in suboptimal prediction performance, motivating the adoption of alternative features in HRTF prediction. 
+
+This study uses a variational autoencoder framework to learn latent feature representations of ear images through unsupervised learning, and subsequently employs these learned representations for HRTF prediction tasks. Variational Autoencoders (VAEs), introduced by Diederik P. Kingma and Max Welling \cite{kingma_auto-encoding_2022}, are a class of generative neural networks. A VAE couples an encoder and a decoder through a probabilistic latent space. Given an input $x$, the encoder infers an input-conditioned variational posterior $ q_\phi(z\mid x)$ rather than a single deterministic code. This latent distribution is commonly modeled as a Gaussian. Specifically, the encoder predicts the mean $\mu$ and the logarithm of the variance $\log \sigma^2$, which parameterize the approximate posterior $q_{\phi}(z \mid x) = \mathcal{N}(z; \mu, \sigma^2)$.
+The decoder then maps a sampled latent variable $z$ back to the input space. The structure of the model is shown in Fig.~\ref{fig:framework}.
+
+In our implementation, the input ear image is a single-channel image of size $1\times256\times256$, and the decoder outputs a reconstructed image of the same size. The encoder employs a multi-stage architecture with non-uniform spatial downsampling. It begins with a $1 \times 1$ convolution that maps the input to 32 channels, followed by an Inception-style residual block. Subsequent stages progressively reduce the spatial resolution through average pooling layers with kernel sizes of $4$, $4$, and $2$, respectively, while doubling the number of channels from $32 \rightarrow 64 \rightarrow 128 \rightarrow 256$. After four such stages, the feature map reaches a resolution of $8 \times 8$. A final global average pooling layer collapses the spatial dimensions to produce a 256-dimensional vector. This vector is linearly projected to a 128-dimensional latent space, where the encoder predicts the parameters of a diagonal Gaussian distribution: the mean $\mu\in\mathbb{R}^{128}$ and log-variance $\log\sigma^2 \in\mathbb{R}^{128}$. The latent variable $z \in\mathbb{R}^{128}$ is sampled via the reparameterization trick.
+
+%Figure
+\begin{figure}
+\centering
+\includegraphics[scale=0.6, trim={0cm 0cm 0cm 0cm}, clip]{figure/fig_order_vs_LSD_bw_compact_12_order.pdf}
+\caption{Relationship between reconstruction error and spherical harmonic decomposition order (2–12).}
+\label{fig:reconstruction}
+\end{figure}
+
+The decoder mirrors this process in reverse. The latent vector $z$ is first mapped back to a 256-dimensional representation and reshaped into a $256 \times 1 \times 1$ tensor. This is then upsampled to $256 \times 8 \times 8$ using nearest-neighbor interpolation (scale factor 8). Four transposed convolutional stages follow, each consisting of an upsampling module and an Inception block. The channel count decreases as $256 \rightarrow 128 \rightarrow 64 \rightarrow 32$, while the spatial resolution increases from $8 \times 8$ to $16 \times 16$, then to $64 \times 64$, and finally to $256 \times 256$. A final $1 \times 1$ transposed convolution yields the single-channel output image.
+
+The VAE is trained by minimizing the negative evidence lower bound, implemented as the sum of a reconstruction term and a KL regularization term:
+\begin{equation}
+\mathcal{L}(x,\hat{x})
+= \mathcal{L}_{\mathrm{rec}}(x,\hat{x})
++ \mathcal{L}_{\mathrm{KL}}.
+\end{equation}
+We use pixel-wise binary cross-entropy for $\mathcal{L}_{\mathrm{rec}}$ and the closed-form Kullback–Leibler divergence between
+$q_\phi(z\mid x)=\mathcal{N}(\mu,\mathrm{diag}(\sigma^2))$ and the standard normal prior $p(z)=\mathcal{N}(0,I)$ for $\mathcal{L}_{\mathrm{KL}}$.
+All parameters are optimized with Adam (learning rate $2\times 10^{-4}$).
+
+
+
+In this work, we utilize the encoder of the VAE to extract feature representations from ear images. Specifically, ear images are fed into the encoder, producing compact feature embeddings that capture the contour characteristics of the ear. Moreover, the segment of the VAE encoder preceding the random sampling step is solely utilized when encoding ear images. This strategy removes the randomness in the encoding process, allowing for the generation of stable and consistent encodings. The encoding extracted by this model is identical for the same ear image, ensuring effective and consistent information for HRTF prediction. 
+
+\begin{figure*}
+\centering
+\includegraphics[trim={0.6cm 0.8cm 0.6cm 0.6cm}, clip, width=0.8\textwidth]{figure/模型结构图1vsdx.pdf}
+\caption{Architecture of the residual network for HRTF prediction.}
+\label{fig:network}
+\end{figure*}
+
+\subsection{HRTF feature extraction based on spherical harmonics}
+
+Due to the overfitting issue caused by limited HRTF data, HRTFs are typically mapped to a low-dimensional space, which serves as a feature extraction technique. In this work, a method based on spherical harmonic functions is utilized to extract low-dimensional features from the HRTF.
+
+Spherical harmonic functions provide an orthogonal basis on the sphere and are widely used in spatial audio. The real spherical harmonic function of the $ l\text{-th} $ order and the $ m\text{-th} $ degree at a certain spatial location is computed as
+\begin{equation}
+Y_{l}^{m}(\phi, \theta)=\sqrt{\frac{2 l+1}{4 \pi} \frac{(l-|m|)!}{(l+|m|)!}} P_{l}^{|m|}(\sin \theta) g(|m| \phi)
+\end{equation}
+\begin{equation}
+g(|m| \phi)=\left\{\begin{array}{ll}\sin (|m| \phi), & m \leq 0 \\ \cos (|m| \phi), & m>0\end{array}\right.
+\end{equation}
+
+Where $ l=0,1, \ldots L $ and $ |m| \leq l $ , $ P_{l}^{|m|}(\cdot) $ denotes the associated Legendre function of order $ l $ and degree $ m $.
+
+
+The spherical harmonic order determines the spatial resolution of the HRTF representation. To assess this trade-off, reconstruction errors were evaluated for orders 2 through 12, as illustrated in Fig.~\ref{fig:reconstruction}. The results reveal that higher decomposition orders consistently lead to lower reconstruction LSD values, reflecting improved accuracy in HRTF reconstruction. However, increasing the order also substantially raises the dimensionality of the spherical harmonic coefficients. For example, at order 12, the number of coefficients reaches 169, which significantly increases the difficulty of prediction. Therefore, the choice of decomposition order should balance reconstruction accuracy against the predictive capacity of the model.
+
+A spherical harmonic transform (SHT) was applied to each frequency bin with a spherical harmonic order of L = 8 \cite{romigh_efficient_2015-1}, yielding 81-dimensional coefficients. The rationale for this choice is discussed in the Results section. Considering the correlation and continuity of the HRTF magnitude spectra across various sampling grids and frequencies \cite{zhao_efficient_2024-1}, specific processing was applied to the spherical harmonic coefficients, which is shown in Fig.~\ref{fig:matrix}. The spherical harmonic coefficients are concatenated along the frequency axis to form an $ M \times Q $ matrix, where $ M $ represents the number of frequency points, and $ Q $ corresponds to the dimensionality of the spherical harmonic coefficients. This matrix uses the continuity of the HRTF across both spatial and frequency dimensions, which helps improve the model’s performance. However, this strategy reduces the number of available training samples, potentially limiting the model’s learning capacity.
+
+%Figure
+\begin{figure}
+\centering
+\includegraphics[width=82mm, trim={0.1cm 0.1cm 0.1cm 0.1cm}, clip]{figure/球谐系数拼接EN2.pdf}
+\caption{Matrix representation of spherical harmonic coefficients ordered by frequency.}
+\label{fig:matrix}
+\end{figure}
+
+
+\subsection{DNN model for feature mapping}
+The features extracted by the VAE encapsulate the ear’s geometric information, while the spherical harmonic coefficients represent the directional and spectral characteristics of the HRTF. To investigate the relationship between these features and the spherical harmonic coefficients, we designed a residual network model to learn their underlying nonlinear mapping. This process can be framed as a supervised learning task, where ear features serve as inputs and the spherical harmonic coefficients of the HRTF are the outputs. The model architecture is shown in Fig.~\ref{fig:network}. The input ear image encoding is first processed through a convolutional layer, which increases the number of channels from 1 to 64. This is followed by batch normalization and a ReLU activation function. The transformed features are then processed by a sequence of three residual blocks, with channel dimensions progressively increasing from 64 to 128, then 128 to 256, and finally 256 to 512. Afterward, the data flows through an adaptive average pooling layer and is flattened. Finally, the 512-dimensional feature vector is projected through a fully connected layer to a 3,483-dimensional representation, which is subsequently reshaped to obtain the desired output format.
+
+During training, the network is optimized using a mean squared error (MSE) loss between the predicted and ground-truth spherical harmonic coefficients.
+
+\subsection{Alternative feature representations}
+
+To further assess the effectiveness of the proposed VAE-based representation, additional experiments were conducted using alternative feature modalities, namely anthropometric parameters and convolutional image features extracted by a ResNet backbone. All alternative representations were evaluated using the same residual mapping network described in Section 2.3.
+
+In the HUTUBS database, each subject is associated with 37 anthropometric parameters. Among these, 13 parameters describe head and torso dimensions, and 12 parameters correspond to each ear. In this study, only the HRTFs of the left ear were considered. Accordingly, 25 relevant parameters were retained, including 13 head-and-torso parameters and 12 left-ear parameters.
+
+To mitigate scale variability across parameters, the anthropometric measurements were first standardized and subsequently mapped to the interval $(0,1)$ using a logistic function:
+
+\begin{equation}
+\tilde{a}_i = \left(1 + e^{-\frac{a_i - \mu_{a,i}}{\sigma_{a,i}}}\right)^{-1}
+\end{equation}
+where $a_i$ denotes the $i$-th anthropometric parameter, and $\mu_{a,i}$ and $\sigma_{a,i}$ represent the mean and standard deviation of the $i$-th parameter computed from the training set. The resulting parameter vector $\tilde{\mathbf{a}}$ was used as input to the residual mapping network, replacing the VAE latent representation in the comparative experiments.
+
+For comparative evaluation, a discriminative image embedding was extracted using a convolutional neural network. A ResNet-18 model pre-trained on ImageNet was employed as the feature extractor. The final classification layer was removed, and the output of the global average pooling layer was used as a fixed-length feature vector.
+
+Each ear image was resized to $224 \times 224$ and processed by the ResNet backbone, yielding a 512-dimensional feature vector. For comparison, the extracted ResNet features were directly fed into the same residual mapping network.
+
+
+
+
+
+\section{Dataset and preprocessing}
+The proposed HRTF personalization method was developed and evaluated using the HUTUBS dataset \cite{brinkmann_cross-evaluated_2019}, released in 2019. It contains Head-Related Impulse Responses (HRIRs) in SOFA format for 96 subjects, with 58 subjects also providing 3D head meshes. The ear images were generated from 3D head meshes using Blender. A custom script was developed to load the head mesh and place cameras on both sides of the head, ensuring proper alignment with the ear canals. Subsequently, the ear images were captured by the cameras and used as training data for the model. Due to the limited size of the dataset, data augmentation was performed by rotating the camera around the ear canal to capture images from multiple angles. The azimuth and elevation angles were varied from $ -15^{\circ} $ to $ 15^{\circ} $ with a step size of $ 5^{\circ} $ during the image acquisition process. Images were captured from 49 different directions for each pinna, resulting in a total of 5,684 images of the left and right ears across all subjects in the dataset. These images were used to train the VAE model. The obtained ear images were fed into the encoder module to produce a compact representation, which was then passed to the decoder module for reconstruction. The difference between the input and the reconstructed output was calculated as the loss function for optimizing the model. Original images and reconstructed images from the encoder-decoder are shown in Fig.~\ref{fig:comparison}. 
+
+After training, the encoder encoded ear images captured with the camera directly facing the ear canal. Each subject was represented by a 256-dimensional latent vector derived from the left ear, resulting in a total of 58 representations. These representations characterized individual ear geometries and were used as input for subsequent HRTF prediction.
+
+A 256-point Fast Fourier Transform (FFT) was utilized to convert the Head-Related Impulse Response (HRIR) of the left ear into the corresponding HRTF. The magnitude of the HRTF was then converted to a logarithmic scale to achieve better alignment with the human ear's perception of sound intensity. Subsequently, the magnitude of the HRTF was decomposed into spherical harmonic coefficients at each frequency. The spherical harmonic coefficients were retained up to order $L$ (with $L$ ranging from 4 to 12) to investigate the influence of decomposition order on model performance. At each frequency, the number of coefficients was $(L + 1)^2$, and for each individual, these coefficients were calculated at 43 frequency bins between 172 Hz and 15 kHz.
+
+Finally, the encoded ear images were paired with the corresponding spherical harmonic coefficients to form the dataset.
+
+
+\begin{figure}
+    \centering
+    \begin{subfigure}[b]{0.23\textwidth}
+        \includegraphics[width=\textwidth]{figure/图片1.png}
+        \caption{Original images}
+        \label{fig:original_images}
+    \end{subfigure}
+    \hfill % 添加一些水平间距
+    \begin{subfigure}[b]{0.23\textwidth}
+        \includegraphics[width=\textwidth]{figure/图片2.png}
+        \caption{Reconstructed images}
+        \label{fig:reconstructed_images}
+    \end{subfigure}
+    \caption{Original images and reconstructed images 
+from the encoder-decoder}
+    \label{fig:comparison}
+\end{figure}
+
+
+
+\section{Training setup}
+
+The proposed framework was implemented in PyTorch and trained on a single NVIDIA RTX 3080Ti GPU.
+The VAE encoder was trained separately in an unsupervised manner using Adam ($2\times 10^{-4}$, batch size 32) for 300 epochs. Input images were resized to $256 \times 256$ and normalized to $[0,1]$. The trained encoder was then used to extract latent representations for supervised mapping.
+
+The residual mapping network was then trained in a supervised manner to predict spherical harmonic coefficients from the extracted ear representations. Training was performed with a batch size of 10 for 400 epochs using the Adam optimizer with an initial learning rate of $2\times 10^{-4}$. The learning rate was decayed by 20\% every 100 epochs to ensure stable convergence.To improve the generalizability of the results, ten-fold cross-validation was conducted on 54 subjects. The subjects were randomly partitioned into ten folds. In each fold, one subset was used as the test set, while the remaining subjects were split into training and validation sets. From the remaining subjects, 10\% were randomly selected as the validation set, and the rest were used for training. The model was evaluated on the test set in each fold, and the final performance was averaged over all folds.
+
+
+
+
+%Table
+\begin{table}[t]
+\tabcolsep8.1pt
+\caption{Objective performance comparison in LSD.}
+\label{table:result}
+{%
+\begin{tabular}{@{}lllc@{}}\toprule
+Methods& Global LSD \\\midrule
+General HRTF   & 7.17 dB\\
+Simulated HRTF   & 7.93 dB\\
+PRTFNet\cite{ko_prtfnet_2023}   & 5.00 dB\\
+DDPM\cite{10887566} & 5.10 dB\\
+Anthropometric features + SH regression & 4.88 dB \\
+ResNet features + SH regression & 4.91 dB \\
+VAE features + SH regression & 4.90 dB\\\bottomrule
+\end{tabular}}
+% \begin{tabnote}
+% Note. 
+% \end{tabnote}
+\end{table}
+\section{Results evaluation}
+
+This section evaluates the performance of our proposed method using Log-Spectral Distortion (LSD) as an objective metric. LSD quantifies the difference between the predicted and measured HRTFs in the frequency domain and is defined as
+\begin{equation}
+\mathrm{LSD}=\sqrt{\frac{1}{S N_{f}} \sum_{d \in \mathbf{D}} \sum_{k=k_{1}}^{k_{N}}\left(20 \log _{10} \frac{\left|H\left(d, f_{k}\right)\right|}{\left|\hat{H}\left(d, f_{k}\right)\right|}\right)^{2}}
+\end{equation}
+Where $ d $ represents the spatial position, $ k_{1} $ and $ k_{N} $ denote the start and end points of the considered frequency range. $ S $ and $ N_{f} $ represent the number of spatial positions and frequencies, respectively. $ H\left(d, f_{k}\right) $ and $ \hat{H}\left(d, f_{k}\right) $ represent the magnitudes of the measured and predicted HRTFs in the linear scale.
+
+
+%Figure
+\begin{figure}
+\centering
+\includegraphics[width=80mm]{figs/lsd_f_20260315_23.pdf}
+\caption{Log-spectral distortion (LSD) across frequency for different methods.}
+\label{fig:LSD}
+\end{figure}
+
+To investigate the impact of decomposition order, spherical harmonic decompositions from the 4th to the 12th order were evaluated. The decomposition was performed at 43 uniformly spaced frequency bins spanning the range from 172 Hz to 15 kHz. 
+
+
+Fig.~\ref{fig:order_vs_LSD} shows the validation LSD as a function of the spherical harmonic decomposition order. At the 9th order, the validation LSD is 4.74 dB, and increasing the decomposition order further does not yield a noticeable improvement. Therefore, the 9th-order coefficients are used in the subsequent experiments.
+
+A comparison of global log-spectral distortion (LSD) values for different HRTF personalization methods is shown in Table \ref{table:result}.
+
+
+First, the LSD was computed between the ground-truth HRTFs and those reconstructed from SH coefficients predicted using VAE-based ear representations. The evaluation covered 43 frequency bins ranging from 172 Hz to 15 kHz, yielding an average LSD of 4.90 dB. For comparison, replacing the VAE-based ear representation with ResNet-extracted features, while keeping the same network architecture, SH order selection strategy, and training protocol, resulted in an average LSD of 4.91 dB. When anthropometric parameters were used as input under the same experimental configuration, the average LSD was further reduced to 4.88 dB, which was the best result among the three feature representations. This improvement may be attributed to the fact that the anthropometric parameters explicitly encode three-dimensional geometric information of both the head and the pinna.
+
+%Figure
+\begin{figure}
+\centering
+\includegraphics[scale=0.5, trim={0cm 0cm 0cm 0cm}, clip]{figs/lsd_o_20260315.pdf}
+\caption{Average log-spectral distortion (LSD) as a function of spherical harmonic decomposition order.}
+\label{fig:order_vs_LSD}
+\end{figure}
+
+Beyond feature-level comparisons, the proposed method was further evaluated against physically simulated HRTFs generated using the Boundary Element Method (BEM)\cite{brinkmann_recent_2023-1}. Compared to the BEM-based method, the proposed method achieved a reduction of 2.78 dB in LSD. The simulated HRTFs contained higher energy in high-frequency bands compared to measured HRTFs, which may perceptually enhance clarity and create a sensation of spatial proximity to the head. This phenomenon can lead to vertical localization discrepancies in auditory perception, often causing sounds to be perceived as originating from elevated spatial positions \cite{blauert_sound_nodate}. Moreover, we compared the proposed method with a general approach that substitutes each individual’s HRTF with the FABIAN artificial head HRTF. The LSD was computed for each subject and averaged across all individuals.Compared to this general approach, the proposed method achieved a 2.02 dB reduction in LSD.
+
+
+
+We further benchmarked the proposed method with state-of-the-art HRTF personalization approaches, including those using anthropometric parameters and ear images.
+
+PRTFNet\cite{ko_prtfnet_2023} proposed a CNN-based PRTF personalization method. In this method, a CNN was used to predict compact PRTFs from ear images. The compact PRTF refers to head-related impulse responses truncated with a 2-ms Hanning window. The model trained with compact PRTF achieved an LSD of 5.0 dB, which is 0.1 dB higher than our proposed method using VAE-extracted ear-image features.
+
+
+
+Furthermore, we compared our method with the diffusion-based approach conditioned on anthropometric measurements, which reported an average LSD of 5.10 dB\cite{10887566}. Our VAE-based method achieved an average LSD of 4.90 dB under the same evaluation protocol, which is lower than that of the diffusion-based model. A possible reason is that, under limited training data, diffusion models are more difficult to train effectively.
+
+
+
+To provide further insight into the performance differences, we analyzed the frequency-dependent LSD for the proposed method, simulated HRTFs, and the general HRTFs. As shown in Fig.~\ref{fig:LSD}, the proposed method consistently achieves the lowest LSD across the entire frequency range, with notable improvements above 5 kHz where spectral localization cues are most critical. In contrast, the simulated HRTFs yield the highest LSD values, particularly in the middle- and high-frequency bands. The performance of the general HRTF lies between the two: it surpasses the simulated HRTFs but remains inferior to the proposed method. These results confirm that the proposed method provides more accurate spectral representations, thereby improving the fidelity of HRTF individualization.
+
+A single subject was randomly selected, and the figure shows a comparison between the HRTFs predicted by different models and the measured HRTF at specific spatial directions $(\phi, \theta)$. In the frontal direction $(\phi = 0^\circ, \theta = 0^\circ)$, all three methods accurately predict the low-frequency peak (around 4~kHz), while the proposed method more precisely captures the spectral notch. In the lateral direction $(\phi = 90^\circ, \theta = 0^\circ)$, compared with the simulated and general HRTFs, the proposed method better reconstructs the main peaks and notches, although notable discrepancies remain in the high-frequency range relative to the measured HRTF.
+
+
+\begin{figure}  % t = 尝试放在页面顶部
+    \centering
+\includegraphics[scale=0.48]{figs/spec.pdf}
+    \caption{Comparison of HRTFs predicted by different models versus measured HRTFs at frontal and lateral directions.}
+    \label{fig:hrtf_comparison}
+\end{figure}
+
+\section{Conclusion}
+This study presents an ear-image-driven and lightweight HRTF personalization framework that combines variational autoencoder (VAE) representations with structured spherical harmonic (SH) outputs. To preserve the spatial-frequency characteristics of HRTFs, SH coefficients are organized in matrix form and predicted under a unified SH regression framework. Within this unified setting, we systematically compared three input modalities, namely anthropometric parameters, ResNet-based image features, and VAE-based image features.
+
+Quantitative evaluation confirms the effectiveness of the framework. The anthropometric, VAE, and ResNet inputs achieved average LSDs of 4.88 dB, 4.90 dB, and 4.91 dB, respectively. In addition, the results are competitive with representative recent methods, including PRTFNet\cite{ko_prtfnet_2023} (5.00 dB) and DDPM\cite{10887566} (5.10 dB), and are better than simulated HRTFs (7.93 dB) and generic HRTFs (7.17 dB).
+
+In future work, larger and more diverse HRTF datasets will be incorporated to comprehensively evaluate the generalization capability of the proposed framework. Beyond the current reliance on objective metrics such as LSD, subjective listening tests will be introduced to assess perceptual performance. In addition, while the current method employs a residual network to map image-encoded features to HRTF spherical harmonic coefficients, subsequent research could explore transformer-based architectures to enhance spatial position modeling and further improve prediction accuracy.
+
+
+% \appendix
+% \section{My Appendix}
+% Appendix sections are coded under \verb+\appendix+.
+
+% \verb+\printcredits+ command is used after appendix sections to list 
+% author credit taxonomy contribution roles tagged using \verb+\credit+ 
+% in frontmatter.
+
+\printcredits
+
+%% Loading bibliography style file
+% \bibliographystyle{model1-num-names}
+\bibliographystyle{cas-model2-names}
+
+% Loading bibliography database
+\bibliography{ref}
+
+
+%\vskip3pt
+
+\bio{figs/headshot_lpb}
+Pengbo Lyu is currently pursuing the M.Sc.~degree in Acoustics at Nanjing University, China. He received the B.Eng.~degree in Underwater Acoustics Engineering from Harbin Engineering University in 2023. His research interests include personalized head-related transfer function (HRTF) modeling, binaural rendering, and sound field control.
+\endbio
+
+\bio{figs/headshot_ljw}
+Jiawei Liu is currently pursuing the M.Sc.~degree in Acoustics at Nanjing University, China, having received the B.Eng.~degree in Physics from the same institution in 2023. His research focuses on the modeling and database construction of personalized head-related transfer functions, spatial audio and sound field control.
+\endbio
+
+\bio{figs/headshot_lzb}
+Dr. Zhibin Lin received a Bachelor of Science degree and Ph.D. degrees from the Department of Electronic Science and Engineering of Nanjing University in 2007. Currently he holds a position of Associate Professor at the Institute of Acoustics, Nanjing University. His research interests are mainly in speech and audio signal processing, specifically sound field analysis, speech and audio coding, and digital signal processing in general. 
+\endbio
+
+\end{document}
+
